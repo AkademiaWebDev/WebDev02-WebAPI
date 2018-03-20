@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ namespace WarsawCore
         {
             services.AddMvc();
             services.AddSwaggerGen(c => c.SwaggerDoc("v1", new Info { Title = "Warsaw Stops API", Version = "v1" }));
+            services.AddDbContext<WarsawDbContext>(options => options.UseSqlite(Configuration.GetConnectionString("WarsawDbConnection")));
 
         }
 
