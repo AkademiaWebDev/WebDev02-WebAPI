@@ -83,3 +83,83 @@ dotnet ef migrations add "Create Stop table"
 dotnet ef database update
  ```
 - EF oraz baza są gotowe do uzycia
+
+# Krok 4 dodanie repozytorium
+
+W tym kroku wprowadzimy, juz trochę logiki do naszej aplikacji. Z frontendem ustaliśmy jak będzie działać aplikacja.
+Strona główna to tabela wszystkich przystanków z paginacją oraz wyszukiwarką. Wyszukiwarka wyszukuje po nazwie przystanku. Wynik wyszukiwania zawęża tabelę poniżej. W tabelki nie są widoczne wszystkie dane. Tylko, te które pozwalają zidentyfikać przystanek. Reszta danych dostępna jest w widoku szczegółowym.
+
+Oprócz tego użytkownik powinień mieć możliwość dodawania, usuwania oraz modyfikowania przystanku.
+
+Dzięki tym wymaganiom możemy teraz zaprojektować repozytorium, czyli warstwę danych.
+
+ - Stwórz folder **Repositories** w głównym katalogu projektu. A w nim interfejs `IStopsRepository` oraz klasę `StopsRepository`
+
+```
+    public interface IStopsRepository
+    {
+        (IEnumerable<Stop>, int) Get(string search, int skip);
+        Stop Get(int Id);
+        Stop Create(Stop stop);
+        Stop Update(Stop stop);
+        void Delete(int id);        
+    }
+```
+```
+    public class StopsRepository : IStopsRepository
+    {
+        private readonly WarsawDbContext _context;
+        public StopsRepository(WarsawDbContext context)
+        {
+            _context = context;
+
+        }
+
+        public void Delete(int id)
+        {
+            Stop stopEntity = _context.Stops.Find(id);
+            _context.Stops.Remove(stopEntity);
+            _context.SaveChanges();
+        }
+
+        public Stop Create(Stop stop)
+        {
+            _context.Stops.Add(stop);
+            _context.SaveChanges();
+            return stop;
+        }
+
+        public Stop Update(Stop stop)
+        {
+            _context.Stops.Attach(stop);
+            _context.Entry(stop).State = EntityState.Modified;
+            _context.SaveChanges();
+            return stop;
+        }
+
+        public (IEnumerable<Stop>, int) Get(string search, int skip)
+        {
+            var stopsFilteredByName = search != null ? _context.Stops
+                .Where(x => x.Name.ToLower()
+                .Contains(search)) : _context.Stops;
+             
+            var stopsCount = stopsFilteredByName.Count();
+
+            var paginatedStop = stopsFilteredByName
+                .OrderBy(x => x.Id)
+                .Skip(skip)
+                .Take(20);
+
+            return (paginatedStop, stopsCount);
+        }
+
+        public Stop Get(int id){
+            return _context.Stops.Find(id);
+        }
+    }
+```
+ - Zrejestruj Repozytorium jako serwis. Dodaj w `Startup.cs` w **ConfigureServices**
+
+ ```
+services.AddTransient<IStopsRepository, StopsRepository>();  
+ ```
