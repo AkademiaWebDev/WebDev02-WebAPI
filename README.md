@@ -163,3 +163,139 @@ Dzięki tym wymaganiom możemy teraz zaprojektować repozytorium, czyli warstwę
  ```
 services.AddTransient<IStopsRepository, StopsRepository>();  
  ```
+
+# Krok 5 dodanie kontrolera WebApi
+## Dodanie modeli domenowych.
+ -  W katalogu **Models** Utwórz plik `CreateStopRequest.cs` a w nim klase.
+ ```
+    public class CreateStopRequest
+    {
+        public string Name { get; set; }
+        public string Number { get; set; }
+        public string Direction { get; set; }
+        public string Street { get; set; }
+        public string City { get; set; }
+        public double Lat { get; set; }
+        public double Long { get; set; }
+
+        public Stop GetStop()
+        {
+            var stop = new Stop
+            {
+                Name = this.Name,
+                Number = this.Number,
+                Direction = this.Direction,
+                Street = this.Street,
+                City = this.City,
+                Lat = this.Lat,
+                Long = this.Long
+            };
+
+            return stop;
+        }
+    }
+ ```
+
+  - Uwórz plik `GetStopRequest.cs` w **Models** a w nim klase
+  ```
+    public class GetStopRequest{
+        public int? Page { get; set; } = 1;
+        public string Search { get; set; }
+    }
+  ```
+
+  - Utwórz plik `SearchResult.cs` w **Models** a w nim klasy
+  ```
+    public class SearchResult
+    {
+        public IEnumerable<StopResult> Items { get; set; }
+        public PageInfo PageInfo { get; set; }
+    }
+
+    public class PageInfo
+    {
+        public int CurrentPage { get; set; }
+
+        public int MaxPage { get; set; }
+    }
+
+    public class StopResult
+    {
+        public StopResult(Stop stop)
+        {
+            Id = stop.Id;
+            Name = stop.Name;
+            Number = stop.Number;
+            Street = stop.Street;
+            City = stop.City;
+        }
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Number { get; set; }
+        public string Street { get; set; }
+        public string City { get; set; }
+        
+    }   
+  ```
+
+  - Utwórz plik `StopsController.cs` w **Controllers** a w nim:
+  ```
+    public class StopsController : Controller
+    {
+        private readonly IStopsRepository repository;
+        private int itemPerPage = 10;
+        public StopsController(IStopsRepository repository)
+        {
+            this.repository = repository;
+
+        }
+
+        [HttpGet("{id}")]
+        // GET api/stops/{id}
+        public IActionResult Get(int id)
+        {
+            return Ok(repository.Get(id));
+        }
+
+        //GET api/stops/?search={string}&page={int}
+        [HttpGet]
+        public IActionResult Get([FromQuery]GetStopRequest request)
+        {
+            var (stops, count) = repository
+                    .Get(request.Search, (request.Page.Value - 1) * itemPerPage);
+            var result = new SearchResult
+            {
+                PageInfo = new PageInfo
+                {
+                    CurrentPage = request.Page.Value,
+                    MaxPage = count % itemPerPage == 0 ? count / itemPerPage : count / itemPerPage + 1
+                },
+                Items = stops.Select(x => new StopResult(x))
+            };
+            return Ok(result);
+        }
+
+        // DELETE api/stops/{id}
+        [HttpDelete]
+        public IActionResult Delete(int id)
+        {
+            repository.Delete(id);
+            return Ok();
+        }
+
+        //POST api/stops
+        [HttpPost]
+        public IActionResult Post([FromBody]CreateStopRequest createStop)
+        {
+            return Ok(repository.Create(createStop.GetStop()));
+        }
+
+        //POST api/stops
+        [HttpPut]
+        public IActionResult Put([FromBody]Stop stop)
+        {
+            return Ok(repository.Update(stop));
+        }
+    }
+  ```
+ - Usuń `ValuesController.cs`
