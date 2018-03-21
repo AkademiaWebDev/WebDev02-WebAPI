@@ -299,3 +299,49 @@ services.AddTransient<IStopsRepository, StopsRepository>();
     }
   ```
  - Usuń `ValuesController.cs`
+
+ # Krok 6 dokeryzacja projektu - dla chętnych
+  - Zainstaluj dockera https://docs.docker.com/docker-for-windows/install/
+  - Dodaj plik w głównym katalogu projektu `Dockerfile`:
+  ```
+FROM microsoft/aspnetcore-build:2.0 AS build-env
+WORKDIR /app
+
+# Copy csproj and restore as distinct layers
+COPY *.csproj ./
+RUN dotnet restore
+
+# Copy everything else and build
+COPY . ./
+RUN dotnet publish -c Release -o out
+COPY WarsawDB.db ./out/
+
+# Build runtime image
+FROM microsoft/aspnetcore:2.0
+WORKDIR /app
+COPY --from=build-env /app/out .
+ENTRYPOINT ["dotnet", "WarsawCore.dll"]
+  ```
+
+  - Dodaj plik w głównym katalogu projektu `.dockerignore`:
+  ```
+bin\
+obj\
+  ```
+ - Wykonaj aby zbudować obraz konternera
+ ```
+ docket build -t warsawapp .
+ ```
+
+ - Wykonaj aby stworzyć i uruchomić kontener
+ ```
+docker run -d -p 8080:80 --name MojaNazwaKontenera warsawapp
+ ```
+
+- Kontener został stworzony. Twoja aplikacja działa teraz na porcie 8080 w kontenerze dockerowym.
+
+### Baza wiedzy
+ - [Wyjaśnienie czym jest kontener i Docker](https://www.ratioweb.pl/pl/blog/toolkit/przygody-z-dockerem-1-instalacja-i-podstawy)  
+ - [Konfiguracja kontenera z MySql](http://sebcza.pl/przydatne-narzedzia/mysql-w-kontenerze-i-zdalny-dostep-czyli-docker-w-akcji/)  
+ - [Codzienna praca z kontenerami](https://www.ratioweb.pl/pl/blog/web-development-toolkit/przygody-z-dockerem-2-praca-z-kontenerami)
+  - [Dokeryzacja ASP .NET Core + Sql Server on Linux](https://docs.docker.com/compose/aspnet-mssql-compose/)
